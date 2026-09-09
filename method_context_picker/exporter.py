@@ -1,0 +1,197 @@
+"""將勾選的 method 匯出為 code.md。"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+import os
+from pathlib import Path
+import re
+from typing import Iterable
+
+from .models import MethodInfo
+
+
+def build_markdown(
+    methods: Iterable[MethodInfo],
+    file_sources: Mapping[Path, str] | None = None,
+    all_methods_by_file: Mapping[Path, Sequence[MethodInfo]] | None = None,
+) -> str:
+    """建立可直接貼到 ChatGPT、Copilot 或 issue 的 Markdown context。
+
+    提供檔案原始碼時，會保留選取檔案中的非-method內容，只移除未勾選的
+    method。這能保留 package、import、annotation、class 宣告與欄位變數。
+    """
+
+    selected = sorted(
+        methods,
+        key=lambda method: (str(method.file_path).casefold(), method.start_offset),
+    )
+    if not selected:
+        return "# Method Context\n\n目前沒有勾選任何 method。\n"
+
+    selected_paths = sorted(
+        {method.file_path for method in selected},
+        key=lambda item: str(item).casefold(),
+    )
+
+    lines = [
+        "# Method Context",
+        "",
+        f"已選取 {len(selected)} 個 method/function。",
+        "",
+    ]
+
+    if file_sources:
+        return _build_file_context_markdown(
+            lines,
+            selected,
+            file_sources,
+            all_methods_by_file or {},
+        )
+
+    for index, method in enumerate(selected, start=1):
+        fence = _code_fence(method.source)
+        language = "java" if method.language == "java" else "javascript"
+        relative_path = relative_file_path(method.file_path, selected_paths)
+        lines.extend(
+            [
+                f"## {index}. `{method.name}`",
+                f"- FilePath（相對路徑）：`{relative_path}`",
+                f"- 類型：{method.display_language} {method.kind}",
+                f"- 行號：L{method.start_line}-L{method.end_line}",
+                f"- Signature：`{_escape_inline_code(method.signature)}`",
+                "",
+                f"{fence}{language}",
+                method.source.rstrip("\r\n"),
+                fence,
+                "",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def write_markdown(
+    output_path: str | Path,
+    methods: Iterable[MethodInfo],
+    file_sources: Mapping[Path, str] | None = None,
+    all_methods_by_file: Mapping[Path, Sequence[MethodInfo]] | None = None,
+) -> Path:
+    """將 Markdown 以 UTF-8 寫入指定位置，並回傳絕對路徑。"""
+
+    path = Path(output_path).expanduser().resolve()
+    path.write_text(
+        build_markdown(methods, file_sources, all_methods_by_file),
+        encoding="utf-8",
+        newline="\n",
+    )
+    return path
+
+
+def build_file_context(
+    source: str,
+    all_methods: Sequence[MethodInfo],
+    selected_keys: set[str],
+) -> str:
+    """保留非-method內容與勾選的 method，移除未勾選的 method。"""
+
+    chunks: list[str] = []
+    cursor = 0
+    spans = sorted(all_methods, key=lambda method: method.start_offset)
+    for method in spans:
+        if method.start_offset < cursor:
+            # 目前只處理最外層 method；巢狀 function 已包含在外層範圍內。
+            continue
+        chunks.append(source[cursor:method.start_offset])
+        if method.key in selected_keys:
+            chunks.append(source[method.start_offset:method.end_offset])
+        cursor = method.end_offset
+    chunks.append(source[cursor:])
+    return "".join(chunks).strip()
+
+
+def _build_file_context_markdown(
+    lines: list[str],
+    selected: list[MethodInfo],
+    file_sources: Mapping[Path, str],
+    all_methods_by_file: Mapping[Path, Sequence[MethodInfo]],
+) -> str:
+    """建立以檔案為單位的 context，讓非-method程式碼保持完整。"""
+
+    selected_keys = {method.key for method in selected}
+    selected_by_file: dict[Path, list[MethodInfo]] = {}
+    for method in selected:
+        selected_by_file.setdefault(method.file_path, []).append(method)
+
+    lines.extend(["## Selected methods", ""])
+    selected_paths = sorted(
+        selected_by_file,
+        key=lambda item: str(item).casefold(),
+    )
+    for method in selected:
+        relative_path = relative_file_path(method.file_path, selected_paths)
+        lines.append(
+            f"- `{method.name}` — `{method.file_path.name}` "
+            f"(L{method.start_line}-L{method.end_line})；"
+            f"FilePath（相對路徑）：`{relative_path}`"
+        )
+    lines.extend(["", "## Source Context", ""])
+
+    for path in selected_paths:
+        source = file_sources.get(path)
+        if source is None:
+            continue
+        methods = all_methods_by_file.get(path, selected_by_file[path])
+        context = build_file_context(source, methods, selected_keys)
+        language = "java" if selected_by_file[path][0].language == "java" else "javascript"
+        fence = _code_fence(context)
+        lines.extend(
+            [
+                f"### `{path.name}`",
+                f"FilePath（相對路徑）：`{relative_file_path(path, selected_paths)}`；"
+                "保留非-method內容與已勾選 method。",
+                "",
+                f"{fence}{language}",
+                context,
+                fence,
+                "",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def relative_file_path(path: Path, all_paths: Sequence[Path]) -> str:
+    """以專案 source root 或共同父資料夾建立可攜式相對路徑。"""
+
+    resolved_path = Path(path).resolve()
+    resolved_parents = [str(Path(item).resolve().parent) for item in all_paths]
+    if not resolved_parents:
+        return resolved_path.name
+    try:
+        source_roots = {
+            ancestor.parent
+            for item in all_paths
+            for ancestor in [Path(item).resolve().parent, *Path(item).resolve().parents]
+            if ancestor.name.casefold() == "src"
+        }
+        if len(source_roots) == 1:
+            base_path = next(iter(source_roots))
+        else:
+            base_path = Path(os.path.commonpath(resolved_parents))
+        return Path(os.path.relpath(resolved_path, base_path)).as_posix()
+    except ValueError:
+        # 不同磁碟機無法計算共同路徑時，至少提供不含使用者目錄的檔名。
+        return resolved_path.name
+
+
+def _code_fence(source: str) -> str:
+    """選擇不會被原始碼內 backtick 提前關閉的 fenced code marker。"""
+
+    runs = re.findall(r"`+", source)
+    longest = max((len(run) for run in runs), default=2)
+    return "`" * max(3, longest + 1)
+
+
+def _escape_inline_code(text: str) -> str:
+    """避免 signature 內的 backtick 破壞 inline code。"""
+
+    return text.replace("`", "\\`")
