@@ -9,7 +9,7 @@ from tkinter.scrolledtext import ScrolledText
 
 from .exporter import build_file_context, relative_file_path, write_markdown
 from .models import MethodInfo
-from .parsers import parse_source, read_source
+from .parsers import find_source_files, parse_source, read_source
 
 
 DARK_PALETTE = {
@@ -175,6 +175,9 @@ class MethodContextPickerApp:
         ttk.Button(buttons, text="加入檔案", command=self._add_files).pack(
             side="left", padx=(0, 4)
         )
+        ttk.Button(buttons, text="加入資料夾", command=self._add_folder).pack(
+            side="left", padx=(0, 4)
+        )
         ttk.Button(buttons, text="移除選取", command=self._remove_files).pack(
             side="left", padx=(0, 4)
         )
@@ -305,6 +308,31 @@ class MethodContextPickerApp:
         if not paths:
             return
 
+        self._load_paths(paths)
+
+    def _add_folder(self) -> None:
+        """遞迴加入資料夾內所有 Java / JavaScript 檔案。"""
+
+        folder = filedialog.askdirectory(title="選取要遞迴加入的資料夾")
+        if not folder:
+            return
+        try:
+            paths = find_source_files(folder)
+        except (OSError, ValueError) as error:
+            messagebox.showerror("資料夾無法讀取", str(error), parent=self.root)
+            return
+        if not paths:
+            messagebox.showinfo(
+                "找不到支援檔案",
+                "此資料夾及子資料夾沒有 .java 或 .js 檔案。",
+                parent=self.root,
+            )
+            return
+        self._load_paths(paths)
+
+    def _load_paths(self, paths: tuple[str, ...] | list[Path]) -> None:
+        """讀取、解析並加入一批檔案。"""
+
         errors: list[str] = []
         added = 0
         for raw_path in paths:
@@ -322,7 +350,9 @@ class MethodContextPickerApp:
 
         self._refresh_file_list()
         self._refresh_method_list()
-        self._set_status(f"已加入 {added} 個檔案，共找到 {len(self._all_methods())} 個 method/function。")
+        self._set_status(
+            f"已加入 {added} 個檔案，共找到 {len(self._all_methods())} 個 method/function。"
+        )
         if errors:
             messagebox.showwarning("部分檔案無法加入", "\n".join(errors), parent=self.root)
 

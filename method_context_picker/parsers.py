@@ -100,6 +100,22 @@ def parse_file(file_path: str | Path) -> list[MethodInfo]:
     return parse_source(read_source(path), path, language)
 
 
+def find_source_files(directory: str | Path) -> list[Path]:
+    """遞迴尋找資料夾內所有支援的 Java / JavaScript 檔案。"""
+
+    root = Path(directory).expanduser().resolve()
+    if not root.is_dir():
+        raise NotADirectoryError(f"不是資料夾：{root}")
+    return sorted(
+        {
+            path.resolve()
+            for path in root.rglob("*")
+            if path.is_file() and path.suffix.lower() in SUPPORTED_SUFFIXES
+        },
+        key=lambda path: str(path).casefold(),
+    )
+
+
 def parse_source(
     source: str,
     file_path: str | Path,

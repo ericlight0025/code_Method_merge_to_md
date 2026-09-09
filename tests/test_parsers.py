@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from method_context_picker.parsers import parse_file, parse_source
+from method_context_picker.parsers import find_source_files, parse_file, parse_source
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -103,6 +103,19 @@ class ParserTests(unittest.TestCase):
         )
         hello = next(method for method in controller_methods if method.name == "hello")
         self.assertIn("@GetMapping(\"/hello\")", hello.source)
+
+    def test_find_source_files_recursively(self) -> None:
+        files = find_source_files(FIXTURES)
+        self.assertEqual(
+            [path.relative_to(FIXTURES).as_posix() for path in files],
+            [
+                "Example.java",
+                "example.js",
+                "spring_boot_demo/src/main/java/demo/GreetingController.java",
+                "spring_boot_demo/src/main/java/demo/GreetingService.java",
+                "spring_boot_demo/src/main/java/demo/SpringBootDemoApplication.java",
+            ],
+        )
 
 
 if __name__ == "__main__":

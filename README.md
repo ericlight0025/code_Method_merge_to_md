@@ -5,6 +5,7 @@
 ## 功能
 
 - 加入多個 `.java` 與 `.js` 檔案
+- 加入資料夾並遞迴尋找所有 `.java` / `.js` 檔案
 - 內建輕量解析器，自動列出常見 Java method、constructor、JavaScript function、class method 與 arrow function
 - 搜尋 method 名稱、signature 或檔名
 - `Select All`：勾選目前搜尋結果
@@ -32,8 +33,8 @@ python main.py
 
 操作順序：
 
-1. 按「加入檔案」。
-2. 選取 Java 或 JavaScript 檔案。
+1. 單檔或多檔加入時按「加入檔案」；要載入整個專案時按「加入資料夾」。
+2. 選取 Java 或 JavaScript 檔案/資料夾，資料夾會自動遞迴掃描子資料夾。
 3. 在右側搜尋並勾選 method/function。
 4. 用「Preview 原始碼」確認內容。
 5. 按「匯出 code.md」選擇輸出位置。
