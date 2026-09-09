@@ -1,0 +1,10 @@
+# Python 測試與執行產生的暫存檔
+__pycache__/
+*.py[cod]
+
+# 測試工具產生的覆蓋率檔案
+.coverage
+htmlcov/
+
+# 本機匯出的使用者資料，不納入原始碼
+fixtures/code.md
