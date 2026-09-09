@@ -27,6 +27,8 @@ _CONTROL_KEYWORDS = {
     "catch",
     "with",
     "synchronized",
+    "try",
+    "function",
 }
 
 # 專門處理 function 宣告，讓 function 名稱在清單中比一般 method 更明確。
@@ -155,6 +157,11 @@ def _collect_candidates(masked: str, language: str) -> list[_Candidate]:
             )
 
     for match in _BLOCK_METHOD_RE.finditer(masked):
+        header_words = match.group("header").strip().split()
+        if header_words and header_words[0] in {
+            "if", "while", "for", "switch", "catch", "try", "synchronized", "else"
+        }:
+            continue
         name = match.group("name")
         if name in _CONTROL_KEYWORDS:
             continue

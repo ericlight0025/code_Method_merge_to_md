@@ -94,19 +94,24 @@ def build_file_context(
 ) -> str:
     """保留非-method內容與勾選的 method，移除未勾選的 method。"""
 
-    chunks: list[str] = []
-    cursor = 0
-    spans = sorted(all_methods, key=lambda method: method.start_offset)
-    for method in spans:
-        if method.start_offset < cursor:
-            # 目前只處理最外層 method；巢狀 function 已包含在外層範圍內。
-            continue
-        chunks.append(source[cursor:method.start_offset])
+    mask = bytearray(b"\x01" * len(source))
+
+    # 1. 標記所有 method 範圍為要移除 (0)
+    for method in all_methods:
+        mask[method.start_offset:method.end_offset] = b"\x00" * (
+            method.end_offset - method.start_offset
+        )
+
+    # 2. 標記已勾選的 method 範圍為保留 (1)
+    # 這會一併蓋過巢狀 function 中，被外層標記為 0 的部分，確保選取內層時不會被外層隱藏。
+    for method in all_methods:
         if method.key in selected_keys:
-            chunks.append(source[method.start_offset:method.end_offset])
-        cursor = method.end_offset
-    chunks.append(source[cursor:])
-    return "".join(chunks).strip()
+            mask[method.start_offset:method.end_offset] = b"\x01" * (
+                method.end_offset - method.start_offset
+            )
+
+    from itertools import compress
+    return "".join(compress(source, mask)).strip()
 
 
 def _build_file_context_markdown(
