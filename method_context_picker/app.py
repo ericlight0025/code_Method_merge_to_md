@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import ctypes
-import ctypes.wintypes
 from pathlib import Path
 import re
-import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
@@ -125,54 +122,114 @@ PREVIEW_TOKEN_PATTERN = re.compile(
 )
 
 
-def _apply_windows_titlebar_theme(window: tk.Misc) -> None:
-    """將 Windows 原生標題列設成黑底白字，其他平台則略過。"""
+class _DarkTitleBar:
+    """提供不受 Windows 主題影響的黑色自訂標題列。"""
 
-    if sys.platform != "win32":
-        return
+    def __init__(self, window: tk.Misc, title: str) -> None:
+        self.window = window
+        self._drag_offset_x = 0
+        self._drag_offset_y = 0
+        self._restore_geometry = ""
+        self._is_maximized = False
 
-    try:
-        window.update_idletasks()
-        dwmapi = ctypes.WinDLL("dwmapi")
-        set_attribute = dwmapi.DwmSetWindowAttribute
-        set_attribute.argtypes = [
-            ctypes.wintypes.HWND,
-            ctypes.wintypes.DWORD,
-            ctypes.c_void_p,
-            ctypes.wintypes.DWORD,
-        ]
-        set_attribute.restype = ctypes.wintypes.LONG
-        user32 = ctypes.windll.user32
-        get_ancestor = user32.GetAncestor
-        get_ancestor.argtypes = [ctypes.wintypes.HWND, ctypes.wintypes.UINT]
-        get_ancestor.restype = ctypes.wintypes.HWND
-        child_hwnd = ctypes.wintypes.HWND(window.winfo_id())
-        hwnd = get_ancestor(child_hwnd, 2) or child_hwnd
+        self.window.overrideredirect(True)
+        self.window.protocol("WM_DELETE_WINDOW", self.window.destroy)
+        self.window.bind("<Map>", self._restore_borderless, add="+")
 
-        # Windows 11 與 Windows 10 使用不同的深色模式屬性編號。
-        dark_mode = ctypes.c_int(1)
-        for attribute in (20, 19):
-            result = set_attribute(
-                hwnd,
-                attribute,
-                ctypes.byref(dark_mode),
-                ctypes.sizeof(dark_mode),
-            )
-            if result == 0:
-                break
+        bar = tk.Frame(window, background="#000000", height=36, highlightthickness=0)
+        bar.pack(side="top", fill="x")
+        bar.pack_propagate(False)
 
-        # COLORREF 使用 0x00BBGGRR；黑色為 0，白色為 0x00FFFFFF。
-        for attribute, color in ((34, 0x00000000), (35, 0x00000000), (36, 0x00FFFFFF)):
-            color_value = ctypes.c_uint(color)
-            set_attribute(
-                hwnd,
-                attribute,
-                ctypes.byref(color_value),
-                ctypes.sizeof(color_value),
-            )
-    except (AttributeError, OSError, tk.TclError):
-        # 舊版 Windows 或非標準 Tk 環境不支援時，保留系統預設標題列。
-        return
+        accent = tk.Frame(bar, background=DARK_PALETTE["accent"], width=3)
+        accent.pack(side="left", padx=(12, 8), pady=10, fill="y")
+        title_label = tk.Label(
+            bar,
+            text=title,
+            background="#000000",
+            foreground="#FFFFFF",
+            font=("Segoe UI", 10),
+            anchor="w",
+        )
+        title_label.pack(side="left", fill="y")
+
+        close_button = self._make_control(bar, "×", self.window.destroy, "#C42B1C")
+        close_button.pack(side="right", fill="y")
+        maximize_button = self._make_control(bar, "□", self._toggle_maximize, "#242A33")
+        maximize_button.pack(side="right", fill="y")
+        minimize_button = self._make_control(bar, "−", self._minimize, "#242A33")
+        minimize_button.pack(side="right", fill="y")
+
+        for widget in (bar, accent, title_label):
+            widget.bind("<ButtonPress-1>", self._start_drag)
+            widget.bind("<B1-Motion>", self._drag_window)
+            widget.bind("<Double-Button-1>", lambda _event: self._toggle_maximize())
+
+    @staticmethod
+    def _make_control(
+        parent: tk.Frame,
+        symbol: str,
+        command: object,
+        active_background: str,
+    ) -> tk.Button:
+        """建立標題列按鈕，維持黑底白字與滑過回饋。"""
+
+        return tk.Button(
+            parent,
+            text=symbol,
+            command=command,
+            background="#000000",
+            foreground="#FFFFFF",
+            activebackground=active_background,
+            activeforeground="#FFFFFF",
+            borderwidth=0,
+            highlightthickness=0,
+            font=("Segoe UI", 12),
+            width=4,
+            cursor="hand2",
+        )
+
+    def _start_drag(self, event: tk.Event) -> None:
+        """記錄拖曳開始位置。"""
+
+        if self._is_maximized:
+            return
+        self._drag_offset_x = event.x_root - self.window.winfo_x()
+        self._drag_offset_y = event.y_root - self.window.winfo_y()
+
+    def _drag_window(self, event: tk.Event) -> None:
+        """拖動黑色標題列以移動視窗。"""
+
+        if self._is_maximized:
+            return
+        x = event.x_root - self._drag_offset_x
+        y = event.y_root - self._drag_offset_y
+        self.window.geometry(f"+{x}+{y}")
+
+    def _toggle_maximize(self) -> None:
+        """在原尺寸與可用螢幕尺寸之間切換。"""
+
+        if self._is_maximized:
+            self.window.geometry(self._restore_geometry)
+            self._is_maximized = False
+            return
+
+        self._restore_geometry = self.window.geometry()
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight() - 40
+        self.window.geometry(f"{screen_width}x{screen_height}+0+0")
+        self._is_maximized = True
+
+    def _minimize(self) -> None:
+        """最小化前暫時恢復系統外框，確保可從工作列還原。"""
+
+        self.window.overrideredirect(False)
+        self.window.iconify()
+
+    def _restore_borderless(self, _event: tk.Event) -> None:
+        """從工作列還原後重新啟用自訂標題列。"""
+
+        if self.window.state() != "iconic":
+            self.window.after_idle(lambda: self.window.overrideredirect(True))
 
 
 class MethodContextPickerApp:
@@ -181,8 +238,8 @@ class MethodContextPickerApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Method Context Picker")
-        self.root.geometry("1180x700")
-        self.root.minsize(960, 620)
+        self.root.geometry("1180x736")
+        self.root.minsize(960, 656)
 
         self.file_methods: dict[Path, list[MethodInfo]] = {}
         self.file_sources: dict[Path, str] = {}
@@ -194,8 +251,8 @@ class MethodContextPickerApp:
         self.search_var = tk.StringVar()
         self.status_var = tk.StringVar(value="請先加入 Java、JavaScript 或 JSP 檔案。")
 
+        self._titlebar = _DarkTitleBar(self.root, "Method Context Picker")
         self._configure_dark_theme()
-        _apply_windows_titlebar_theme(self.root)
         self._build_ui()
         self._refresh_method_list()
 
@@ -315,6 +372,17 @@ class MethodContextPickerApp:
     def _build_ui(self) -> None:
         """建立主視窗元件。"""
 
+        status = ttk.Label(
+            self.root,
+            textvariable=self.status_var,
+            anchor="w",
+            relief="sunken",
+            padding=(8, 6),
+            style="Status.TLabel",
+        )
+        # 狀態列固定由根視窗保留空間，避免內容面板拉高時截斷文字。
+        status.pack(side="bottom", fill="x", padx=14, pady=(0, 14))
+
         container = ttk.Frame(self.root, padding=14, style="App.TFrame")
         container.pack(fill="both", expand=True)
         container.columnconfigure(0, weight=0, minsize=320)
@@ -337,16 +405,6 @@ class MethodContextPickerApp:
 
         self._build_file_panel(container)
         self._build_method_panel(container)
-
-        status = ttk.Label(
-            container,
-            textvariable=self.status_var,
-            anchor="w",
-            relief="sunken",
-            padding=(8, 6),
-            style="Status.TLabel",
-        )
-        status.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10, 0))
 
     def _build_file_panel(self, parent: ttk.Frame) -> None:
         """建立左側檔案清單與檔案操作按鈕。"""
@@ -659,10 +717,10 @@ class MethodContextPickerApp:
 
         preview = tk.Toplevel(self.root)
         preview.title("Preview 原始碼")
-        preview.geometry("1000x700")
-        preview.minsize(600, 400)
+        preview.geometry("1000x736")
+        preview.minsize(600, 436)
         preview.configure(background=DARK_PALETTE["background"])
-        _apply_windows_titlebar_theme(preview)
+        preview._titlebar = _DarkTitleBar(preview, "Preview 原始碼")
         text = ScrolledText(
             preview,
             wrap="none",
