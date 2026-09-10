@@ -7,6 +7,7 @@
 - 加入多個 `.java`、`.js` 與 `.jsp` 檔案
 - 加入資料夾並遞迴尋找所有 `.java` / `.js` / `.jsp` 檔案
 - JSP 不解析 method，會自動以完整檔案保留與匯出
+- 使用 `rg --files` 依檔名進行不分大小寫的模糊搜尋；沒有 rg 時自動退回 Python 搜尋
 - 內建輕量解析器，自動列出常見 Java method、constructor、JavaScript function、class method 與 arrow function
 - 搜尋 method 名稱、signature 或檔名
 - `Select All`：勾選目前搜尋結果
@@ -36,9 +37,10 @@ python main.py
 
 1. 單檔或多檔加入時按「加入檔案」；要載入整個專案時按「加入資料夾」。
 2. 選取 Java、JavaScript 或 JSP 檔案/資料夾，資料夾會自動遞迴掃描子資料夾。
-3. 在右側搜尋並勾選 Java/JavaScript method/function；JSP 不需勾選，會自動完整加入。
-4. 用「Preview 原始碼」確認內容。
-5. 按「匯出 code.md」選擇輸出位置。
+3. 若要依檔名找檔案，在上方選擇資料夾並輸入關鍵字；搜尋只比對檔名，不讀取內容。
+4. 在右側搜尋並勾選 Java/JavaScript method/function；JSP 不需勾選，會自動完整加入。
+5. 用「Preview 原始碼」確認內容。
+6. 按「匯出 code.md」選擇輸出位置。
 
 ## 執行測試
 
@@ -63,6 +65,8 @@ method_context_picker/
 ├─ method_context_picker/
 │  ├─ __init__.py
 │  ├─ app.py                       # Tkinter GUI
+│  ├─ search_app.py                # 檔名搜尋入口
+│  ├─ filename_search.py           # rg / Python 檔名搜尋
 │  ├─ exporter.py                  # Markdown 匯出
 │  ├─ models.py                    # MethodInfo 資料模型
 │  └─ parsers.py                   # Java / JavaScript 內建解析器
@@ -72,6 +76,7 @@ method_context_picker/
 └─ tests/
    ├─ __init__.py
    ├─ test_exporter.py
+   ├─ test_filename_search.py
    └─ test_parsers.py
 ```
 
