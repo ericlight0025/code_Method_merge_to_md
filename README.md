@@ -42,6 +42,31 @@ python main.py
 5. 用「Preview 原始碼」確認內容。
 6. 按「匯出 code.md」選擇輸出位置。
 
+## GUI 實測操作流程
+
+以下流程使用內建的 `fixtures/` 測試資料，可在明天實際使用時照做：
+
+1. 執行 `py main.py` 開啟 GUI。
+2. 在上方「rg 檔名模糊搜尋」按「選擇」，指定專案根資料夾。
+3. 輸入 `controller` 後按「搜尋」。搜尋結果會命中：
+   `spring_boot_demo/src/main/java/demo/GreetingController.java`。
+4. 右側會顯示 `hello` method；勾選後按「Preview 原始碼」。
+5. Preview 會保留 `package`、`import`、annotation、class 欄位、constructor，並保留勾選的 `hello` method。
+6. 按「匯出 code.md」，選擇輸出檔案位置。
+7. 輸入 `jsp` 搜尋時，`example.jsp` 會顯示為「JSP 完整檔案」，不會出現 method checkbox，Preview／匯出會保留全文。
+
+### 實測輸出摘要
+
+```text
+RG 命中：spring_boot_demo/src/main/java/demo/GreetingController.java
+Method：hello
+已選取 1 個 method/function。
+FilePath（專案標籤+路徑）：spring_boot_demo/src/main/java/demo/GreetingController.java
+JSP 完整檔案：example.jsp
+```
+
+檔名搜尋只比對檔名，不會因為資料夾名稱或檔案內容包含關鍵字而誤命中。
+
 ## 執行測試
 
 ```text
