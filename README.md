@@ -2,7 +2,15 @@
 
 這是一個純 Python、Tkinter 的小型 GUI，讓你從 Java / JavaScript 檔案中挑選需要的 method 或 function；JSP 則以完整檔案加入，再預覽或匯出成 `code.md`。
 
+## 畫面預覽
+
+### Method Context Picker
+
 ![Method Context Picker GUI](docs/method_context_picker_gui.png)
+
+### Preview 原始碼
+
+![Preview 原始碼的深色程式碼主題](docs/preview_syntax_theme.png)
 
 ## 功能
 
