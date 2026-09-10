@@ -6,7 +6,7 @@
 
 ### Method Context Picker
 
-![Method Context Picker GUI](docs/method_context_picker_gui.png)
+![Method Context Picker GUI](docs/method_context_picker_gui_v2.png)
 
 ### Preview 原始碼
 
