@@ -15,6 +15,7 @@
 - `Select All`：勾選目前搜尋結果
 - `Clear`：清除全部勾選
 - `Preview 原始碼`：預覽已勾選的原始碼
+- Preview 內建 IDE 風格語法配色：關鍵字、型別、字串、註解、數字與 annotation 分色
 - `匯出 code.md`：輸出含檔名、語言、行號與原始碼的 Markdown
 - 輸出只提供不含本機使用者目錄的專案標籤加路徑 FilePath；package、import、annotation、class 宣告與欄位也會保留，只移除未勾選的其他 method
 - 深色主題：以深色背景、青色 accent 與等寬程式碼預覽降低長時間閱讀負擔

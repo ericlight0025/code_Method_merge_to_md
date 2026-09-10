@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
@@ -28,6 +29,97 @@ DARK_PALETTE = {
     "accent_active": "#9BC5C3",
     "accent_dark": "#253B3D",
 }
+
+PREVIEW_THEME = {
+    "heading": "#6CA8A9",
+    "filepath": "#A3AFBD",
+    "keyword": "#C792EA",
+    "type": "#82AAFF",
+    "string": "#C3E88D",
+    "comment": "#6A9955",
+    "number": "#F78C6C",
+    "annotation": "#89DDFF",
+}
+
+PREVIEW_KEYWORDS = {
+    "abstract",
+    "async",
+    "await",
+    "break",
+    "case",
+    "catch",
+    "class",
+    "const",
+    "continue",
+    "default",
+    "do",
+    "else",
+    "enum",
+    "extends",
+    "export",
+    "final",
+    "finally",
+    "for",
+    "from",
+    "function",
+    "get",
+    "if",
+    "implements",
+    "import",
+    "in",
+    "instanceof",
+    "interface",
+    "let",
+    "new",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "return",
+    "set",
+    "static",
+    "super",
+    "switch",
+    "this",
+    "throw",
+    "throws",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+}
+
+PREVIEW_TYPES = {
+    "Array",
+    "Boolean",
+    "Date",
+    "Double",
+    "Integer",
+    "JSON",
+    "List",
+    "Map",
+    "Number",
+    "Object",
+    "Promise",
+    "Set",
+    "String",
+    "boolean",
+    "byte",
+    "char",
+    "double",
+    "float",
+    "int",
+    "long",
+    "number",
+    "short",
+}
+
+PREVIEW_TOKEN_PATTERN = re.compile(
+    r"//.*|/\*.*?\*/|<!--.*?-->|\"(?:\\.|[^\"\\])*\"|"
+    r"'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|@\w+|"
+    r"\b\d+(?:\.\d+)?\b|\b[A-Za-z_]\w*\b"
+)
 
 
 class MethodContextPickerApp:
@@ -530,7 +622,70 @@ class MethodContextPickerApp:
         )
         text.pack(fill="both", expand=True, padx=12, pady=12)
         text.insert("1.0", self._build_preview_text(selected, whole_paths))
+        self._apply_preview_theme(text)
         text.configure(state="disabled")
+
+    def _apply_preview_theme(self, text: ScrolledText) -> None:
+        """套用內建語法配色，讓 Preview 更接近 IDE 程式碼編輯器。"""
+
+        base_font = ("Consolas", 11)
+        text.tag_configure(
+            "preview_heading",
+            foreground=PREVIEW_THEME["heading"],
+            font=("Consolas", 11, "bold"),
+        )
+        text.tag_configure(
+            "preview_filepath",
+            foreground=PREVIEW_THEME["filepath"],
+            font=("Consolas", 10),
+        )
+        for tag_name in ("keyword", "type", "string", "comment", "number", "annotation"):
+            text.tag_configure(
+                f"preview_{tag_name}",
+                foreground=PREVIEW_THEME[tag_name],
+                font=base_font,
+            )
+        text.tag_configure(
+            "preview_comment",
+            foreground=PREVIEW_THEME["comment"],
+            font=("Consolas", 11, "italic"),
+        )
+
+        for line_number, line in enumerate(text.get("1.0", "end-1c").splitlines(), 1):
+            line_start = f"{line_number}.0"
+            if line.startswith("====="):
+                text.tag_add("preview_heading", line_start, f"{line_number}.end")
+                continue
+            if line.startswith("FilePath（"):
+                text.tag_add("preview_filepath", line_start, f"{line_number}.end")
+                continue
+
+            for match in PREVIEW_TOKEN_PATTERN.finditer(line):
+                token = match.group(0)
+                tag_name = self._preview_token_tag(token)
+                if tag_name is None:
+                    continue
+                start = f"{line_number}.0 + {match.start()} chars"
+                end = f"{line_number}.0 + {match.end()} chars"
+                text.tag_add(tag_name, start, end)
+
+    @staticmethod
+    def _preview_token_tag(token: str) -> str | None:
+        """判斷單一程式碼 token 應使用的語法顏色。"""
+
+        if token.startswith(("//", "/*", "<!--")):
+            return "preview_comment"
+        if token.startswith(("\"", "'", "`")):
+            return "preview_string"
+        if token.startswith("@"):
+            return "preview_annotation"
+        if token[0].isdigit():
+            return "preview_number"
+        if token in PREVIEW_TYPES:
+            return "preview_type"
+        if token in PREVIEW_KEYWORDS:
+            return "preview_keyword"
+        return None
 
     def _export_selected(self) -> None:
         """將勾選的 method 與完整 JSP 檔案匯出成 code.md。"""
