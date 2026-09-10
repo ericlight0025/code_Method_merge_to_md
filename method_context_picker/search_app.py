@@ -34,7 +34,7 @@ class SearchableMethodContextPickerApp(MethodContextPickerApp):
         ttk.Label(panel, text="資料夾：").grid(
             row=0, column=0, padx=(0, 7), sticky="w"
         )
-        ttk.Entry(panel, textvariable=self.filename_root_var, width=42).grid(
+        ttk.Entry(panel, textvariable=self.filename_root_var, width=32).grid(
             row=0, column=1, sticky="w"
         )
         ttk.Button(panel, text="選擇", command=self._choose_filename_root).grid(
@@ -47,7 +47,7 @@ class SearchableMethodContextPickerApp(MethodContextPickerApp):
         ttk.Label(panel, text="檔名：").grid(
             row=0, column=4, padx=(0, 7), sticky="w"
         )
-        query_entry = ttk.Entry(panel, textvariable=self.filename_query_var, width=24)
+        query_entry = ttk.Entry(panel, textvariable=self.filename_query_var, width=18)
         query_entry.grid(row=0, column=5, sticky="w")
         ttk.Button(panel, text="搜尋", command=self._search_filename).grid(
             row=0, column=6, padx=(7, 0)
