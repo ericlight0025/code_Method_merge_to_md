@@ -27,27 +27,33 @@ class SearchableMethodContextPickerApp(MethodContextPickerApp):
     def _build_filename_search_panel(self) -> None:
         """建立只搜尋檔名的 rg 搜尋區。"""
 
-        panel = ttk.LabelFrame(self.root, text="rg 檔名模糊搜尋", padding=8)
-        panel.pack(fill="x", padx=10, pady=(10, 0))
-        panel.columnconfigure(1, weight=1)
+        panel = ttk.LabelFrame(self.root, text="rg 檔名模糊搜尋", padding=(12, 10))
+        panel.pack(fill="x", padx=14, pady=(14, 0))
+        panel.columnconfigure(7, weight=1)
 
         ttk.Label(panel, text="資料夾：").grid(
-            row=0, column=0, padx=(0, 6), pady=(0, 6), sticky="w"
+            row=0, column=0, padx=(0, 7), sticky="w"
         )
-        ttk.Entry(panel, textvariable=self.filename_root_var).grid(
-            row=0, column=1, sticky="ew", pady=(0, 6)
+        ttk.Entry(panel, textvariable=self.filename_root_var, width=42).grid(
+            row=0, column=1, sticky="w"
         )
         ttk.Button(panel, text="選擇", command=self._choose_filename_root).grid(
-            row=0, column=2, padx=(6, 0), pady=(0, 6)
+            row=0, column=2, padx=(7, 0)
+        )
+        ttk.Separator(panel, orient="vertical").grid(
+            row=0, column=3, sticky="ns", padx=16
         )
 
         ttk.Label(panel, text="檔名：").grid(
-            row=1, column=0, padx=(0, 6), sticky="w"
+            row=0, column=4, padx=(0, 7), sticky="w"
         )
-        query_entry = ttk.Entry(panel, textvariable=self.filename_query_var)
-        query_entry.grid(row=1, column=1, sticky="ew")
+        query_entry = ttk.Entry(panel, textvariable=self.filename_query_var, width=24)
+        query_entry.grid(row=0, column=5, sticky="w")
         ttk.Button(panel, text="搜尋", command=self._search_filename).grid(
-            row=1, column=2, padx=(6, 0)
+            row=0, column=6, padx=(7, 0)
+        )
+        ttk.Label(panel, text="只比對檔名，不搜尋內容", style="Hint.TLabel").grid(
+            row=1, column=1, columnspan=6, sticky="w", pady=(6, 0)
         )
         query_entry.bind("<Return>", lambda _event: self._search_filename())
 

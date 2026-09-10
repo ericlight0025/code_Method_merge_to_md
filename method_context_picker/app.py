@@ -17,16 +17,16 @@ from .parsers import find_source_files, parse_source, read_source
 
 
 DARK_PALETTE = {
-    "background": "#11151C",
-    "surface": "#1A2029",
-    "panel": "#202832",
-    "editor": "#0D1117",
-    "border": "#354152",
-    "text": "#E7EDF5",
-    "muted": "#99A7B8",
-    "accent": "#5ED6E3",
-    "accent_active": "#8BEAF0",
-    "accent_dark": "#173D45",
+    "background": "#0F1319",
+    "surface": "#151B23",
+    "panel": "#1B232D",
+    "editor": "#0B0F14",
+    "border": "#2C3744",
+    "text": "#E3E8EF",
+    "muted": "#A3AFBD",
+    "accent": "#6CA8A9",
+    "accent_active": "#9BC5C3",
+    "accent_dark": "#253B3D",
 }
 
 
@@ -36,8 +36,8 @@ class MethodContextPickerApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Method Context Picker")
-        self.root.geometry("1100x700")
-        self.root.minsize(820, 520)
+        self.root.geometry("1180x700")
+        self.root.minsize(960, 620)
 
         self.file_methods: dict[Path, list[MethodInfo]] = {}
         self.file_sources: dict[Path, str] = {}
@@ -58,7 +58,7 @@ class MethodContextPickerApp:
 
         palette = DARK_PALETTE
         self.root.configure(background=palette["background"])
-        self.root.option_add("*Font", ("Segoe UI", 10))
+        self.root.option_add("*Font", ("Segoe UI", 11))
 
         style = ttk.Style(self.root)
         style.theme_use("clam")
@@ -80,22 +80,43 @@ class MethodContextPickerApp:
             foreground=palette["text"],
         )
         style.configure(
+            "Title.TLabel",
+            background=palette["background"],
+            foreground=palette["text"],
+            font=("Segoe UI", 20, "bold"),
+        )
+        style.configure(
+            "Subtitle.TLabel",
+            background=palette["background"],
+            foreground=palette["muted"],
+            font=("Segoe UI", 10),
+        )
+        style.configure(
+            "Hint.TLabel",
+            background=palette["panel"],
+            foreground=palette["muted"],
+            font=("Segoe UI", 9),
+        )
+        style.configure(
             "TLabelframe",
             background=palette["panel"],
             bordercolor=palette["border"],
             relief="solid",
+            padding=10,
         )
         style.configure(
             "TLabelframe.Label",
             background=palette["panel"],
             foreground=palette["accent"],
+            font=("Segoe UI", 11, "bold"),
         )
         style.configure(
             "TButton",
             background=palette["surface"],
             foreground=palette["text"],
             bordercolor=palette["border"],
-            padding=(10, 6),
+            padding=(11, 7),
+            font=("Segoe UI", 10),
         )
         style.map(
             "TButton",
@@ -111,13 +132,15 @@ class MethodContextPickerApp:
             foreground=palette["text"],
             insertcolor=palette["accent"],
             bordercolor=palette["border"],
-            padding=6,
+            padding=(8, 7),
+            font=("Segoe UI", 11),
         )
         style.configure(
             "TCheckbutton",
             background=palette["panel"],
             foreground=palette["text"],
-            padding=4,
+            padding=(6, 5),
+            font=("Segoe UI", 11),
         )
         style.map(
             "TCheckbutton",
@@ -129,6 +152,11 @@ class MethodContextPickerApp:
             background=palette["editor"],
             foreground=palette["muted"],
             bordercolor=palette["border"],
+            font=("Segoe UI", 10),
+        )
+        style.configure(
+            "Vertical.TSeparator",
+            background=palette["border"],
         )
         style.configure(
             "Vertical.TScrollbar",
@@ -141,17 +169,25 @@ class MethodContextPickerApp:
     def _build_ui(self) -> None:
         """建立主視窗元件。"""
 
-        container = ttk.Frame(self.root, padding=10, style="App.TFrame")
+        container = ttk.Frame(self.root, padding=14, style="App.TFrame")
         container.pack(fill="both", expand=True)
+        container.columnconfigure(0, weight=0, minsize=320)
         container.columnconfigure(1, weight=1)
-        container.rowconfigure(1, weight=1)
+        container.rowconfigure(2, weight=1)
 
         title = ttk.Label(
             container,
             text="Method Context Picker",
-            font=("Segoe UI", 16, "bold"),
+            style="Title.TLabel",
         )
-        title.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
+        title.grid(row=0, column=0, columnspan=2, sticky="w")
+
+        subtitle = ttk.Label(
+            container,
+            text="挑出需要的 method；其他檔案內容會保留在輸出脈絡中",
+            style="Subtitle.TLabel",
+        )
+        subtitle.grid(row=1, column=0, columnspan=2, sticky="w", pady=(2, 12))
 
         self._build_file_panel(container)
         self._build_method_panel(container)
@@ -161,16 +197,16 @@ class MethodContextPickerApp:
             textvariable=self.status_var,
             anchor="w",
             relief="sunken",
-            padding=(6, 4),
+            padding=(8, 6),
             style="Status.TLabel",
         )
-        status.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+        status.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(10, 0))
 
     def _build_file_panel(self, parent: ttk.Frame) -> None:
         """建立左側檔案清單與檔案操作按鈕。"""
 
-        panel = ttk.LabelFrame(parent, text="檔案", padding=8)
-        panel.grid(row=1, column=0, sticky="nsew", padx=(0, 8))
+        panel = ttk.LabelFrame(parent, text="檔案", padding=10)
+        panel.grid(row=2, column=0, sticky="nsew", padx=(0, 10))
         panel.rowconfigure(1, weight=1)
         panel.columnconfigure(0, weight=1)
 
@@ -182,10 +218,10 @@ class MethodContextPickerApp:
         ttk.Button(buttons, text="加入資料夾", command=self._add_folder).pack(
             side="left", padx=(0, 4)
         )
-        ttk.Button(buttons, text="移除選取", command=self._remove_files).pack(
+        ttk.Button(buttons, text="移除", command=self._remove_files).pack(
             side="left", padx=(0, 4)
         )
-        ttk.Button(buttons, text="清空檔案", command=self._clear_files).pack(side="left")
+        ttk.Button(buttons, text="清空", command=self._clear_files).pack(side="left")
 
         list_frame = ttk.Frame(panel)
         list_frame.grid(row=1, column=0, sticky="nsew")
@@ -195,7 +231,7 @@ class MethodContextPickerApp:
             list_frame,
             selectmode=tk.EXTENDED,
             exportselection=False,
-            width=32,
+            width=27,
             background=DARK_PALETTE["editor"],
             foreground=DARK_PALETTE["text"],
             selectbackground=DARK_PALETTE["accent_dark"],
@@ -215,8 +251,8 @@ class MethodContextPickerApp:
     def _build_method_panel(self, parent: ttk.Frame) -> None:
         """建立右側搜尋、method 清單與輸出按鈕。"""
 
-        panel = ttk.LabelFrame(parent, text="Method / Function", padding=8)
-        panel.grid(row=1, column=1, sticky="nsew")
+        panel = ttk.LabelFrame(parent, text="Method / Function", padding=10)
+        panel.grid(row=2, column=1, sticky="nsew")
         panel.rowconfigure(2, weight=1)
         panel.columnconfigure(0, weight=1)
 
@@ -433,7 +469,7 @@ class MethodContextPickerApp:
                     command=lambda key=method.key, var=variable: self._on_toggle(
                         key, var
                     ),
-                ).pack(anchor="w", fill="x", padx=4, pady=2)
+                ).pack(anchor="w", fill="x", padx=5, pady=2)
 
         self.method_canvas.yview_moveto(0)
         self.method_canvas.configure(scrollregion=self.method_canvas.bbox("all"))
@@ -483,7 +519,7 @@ class MethodContextPickerApp:
         text = ScrolledText(
             preview,
             wrap="none",
-            font=("Consolas", 10),
+            font=("Consolas", 11),
             background=DARK_PALETTE["editor"],
             foreground=DARK_PALETTE["text"],
             insertbackground=DARK_PALETTE["accent"],
@@ -492,7 +528,7 @@ class MethodContextPickerApp:
             highlightbackground=DARK_PALETTE["border"],
             relief="flat",
         )
-        text.pack(fill="both", expand=True, padx=8, pady=8)
+        text.pack(fill="both", expand=True, padx=12, pady=12)
         text.insert("1.0", self._build_preview_text(selected, whole_paths))
         text.configure(state="disabled")
 
