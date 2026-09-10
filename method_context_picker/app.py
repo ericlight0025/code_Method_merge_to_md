@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import ctypes
+import ctypes.wintypes
 from pathlib import Path
 import re
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
@@ -122,6 +125,56 @@ PREVIEW_TOKEN_PATTERN = re.compile(
 )
 
 
+def _apply_windows_titlebar_theme(window: tk.Misc) -> None:
+    """將 Windows 原生標題列設成黑底白字，其他平台則略過。"""
+
+    if sys.platform != "win32":
+        return
+
+    try:
+        window.update_idletasks()
+        dwmapi = ctypes.WinDLL("dwmapi")
+        set_attribute = dwmapi.DwmSetWindowAttribute
+        set_attribute.argtypes = [
+            ctypes.wintypes.HWND,
+            ctypes.wintypes.DWORD,
+            ctypes.c_void_p,
+            ctypes.wintypes.DWORD,
+        ]
+        set_attribute.restype = ctypes.wintypes.LONG
+        user32 = ctypes.windll.user32
+        get_ancestor = user32.GetAncestor
+        get_ancestor.argtypes = [ctypes.wintypes.HWND, ctypes.wintypes.UINT]
+        get_ancestor.restype = ctypes.wintypes.HWND
+        child_hwnd = ctypes.wintypes.HWND(window.winfo_id())
+        hwnd = get_ancestor(child_hwnd, 2) or child_hwnd
+
+        # Windows 11 與 Windows 10 使用不同的深色模式屬性編號。
+        dark_mode = ctypes.c_int(1)
+        for attribute in (20, 19):
+            result = set_attribute(
+                hwnd,
+                attribute,
+                ctypes.byref(dark_mode),
+                ctypes.sizeof(dark_mode),
+            )
+            if result == 0:
+                break
+
+        # COLORREF 使用 0x00BBGGRR；黑色為 0，白色為 0x00FFFFFF。
+        for attribute, color in ((34, 0x00000000), (35, 0x00000000), (36, 0x00FFFFFF)):
+            color_value = ctypes.c_uint(color)
+            set_attribute(
+                hwnd,
+                attribute,
+                ctypes.byref(color_value),
+                ctypes.sizeof(color_value),
+            )
+    except (AttributeError, OSError, tk.TclError):
+        # 舊版 Windows 或非標準 Tk 環境不支援時，保留系統預設標題列。
+        return
+
+
 class MethodContextPickerApp:
     """Method Context Picker 主視窗。"""
 
@@ -142,6 +195,7 @@ class MethodContextPickerApp:
         self.status_var = tk.StringVar(value="請先加入 Java、JavaScript 或 JSP 檔案。")
 
         self._configure_dark_theme()
+        _apply_windows_titlebar_theme(self.root)
         self._build_ui()
         self._refresh_method_list()
 
@@ -608,6 +662,7 @@ class MethodContextPickerApp:
         preview.geometry("1000x700")
         preview.minsize(600, 400)
         preview.configure(background=DARK_PALETTE["background"])
+        _apply_windows_titlebar_theme(preview)
         text = ScrolledText(
             preview,
             wrap="none",
