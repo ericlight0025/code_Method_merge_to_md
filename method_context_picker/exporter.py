@@ -205,7 +205,10 @@ def project_file_path(path: Path, all_paths: Sequence[Path]) -> str:
         project_root = next(iter(project_roots))
     else:
         parents = [str(Path(item).resolve().parent) for item in all_paths]
-        project_root = Path(os.path.commonpath(parents)) if parents else resolved_path.parent
+        try:
+            project_root = Path(os.path.commonpath(parents)) if parents else resolved_path.parent
+        except ValueError:
+            project_root = resolved_path.parent
     try:
         relative = Path(os.path.relpath(resolved_path, project_root)).as_posix()
     except ValueError:

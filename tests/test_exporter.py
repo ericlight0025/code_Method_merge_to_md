@@ -96,6 +96,15 @@ class ExporterTests(unittest.TestCase):
         self.assertNotIn("C:/Users/", markdown)
         self.assertNotIn("javalight", markdown)
 
+    def test_project_file_path_handles_cross_drive_gracefully(self) -> None:
+        """跨磁碟機或無共同路徑時，不應拋出 ValueError。"""
+        from method_context_picker.exporter import project_file_path
+
+        path_c = Path("C:/projectA/file1.java")
+        path_d = Path("D:/projectB/file2.java")
+        result = project_file_path(path_c, [path_c, path_d])
+        self.assertTrue(result.endswith("file1.java"))
+
 
 if __name__ == "__main__":
     unittest.main()
