@@ -72,6 +72,21 @@ class ParserTests(unittest.TestCase):
 
         self.assertEqual([method.name for method in methods], ["complete"])
 
+    def test_java_anonymous_class_constructor_is_not_parsed_as_method(self) -> None:
+        source = """
+        public class Demo {
+            public void start() {
+                Runnable task = new Runnable() {
+                    public void run() { }
+                };
+            }
+        }
+        """
+        methods = parse_source(source, "Demo.java")
+
+        self.assertNotIn("Runnable", [method.name for method in methods])
+        self.assertIn("start", [method.name for method in methods])
+
     def test_utf8_bom_and_unsupported_extension(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             java_path = Path(temporary) / "Bom.java"

@@ -174,6 +174,10 @@ def _collect_candidates(masked: str, language: str) -> list[_Candidate]:
             # Java constructor 不是 method，保留在檔案上下文中，不放進勾選清單。
             continue
         name_start = match.start("name")
+        header_prefix = masked[match.start("header"):name_start]
+        if language == "java" and re.search(r"\bnew\s+$", header_prefix):
+            # 匿名類別建立式（new Runnable() { ... }）不是可單獨勾選的 method。
+            continue
         if name_start > 0 and masked[name_start - 1] == ".":
             # 排除 if (value.isBlank()) 這類方法呼叫被誤認為宣告。
             continue
