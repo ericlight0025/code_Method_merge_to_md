@@ -125,6 +125,19 @@ class ParserTests(unittest.TestCase):
         hello = next(method for method in controller_methods if method.name == "hello")
         self.assertIn("@GetMapping(\"/hello\")", hello.source)
 
+    def test_quote_inside_regex_literal_does_not_hide_following_functions(self) -> None:
+        source = (
+            "function esc(s) {\n"
+            "  return s.replace(/\"/g, '&quot;');\n"
+            "}\n\n"
+            "function second() {\n"
+            "  return 1;\n"
+            "}\n"
+        )
+        methods = parse_source(source, "regex.js")
+        self.assertEqual([method.name for method in methods], ["esc", "second"])
+        self.assertEqual((methods[1].start_line, methods[1].end_line), (5, 7))
+
     def test_find_source_files_recursively(self) -> None:
         files = find_source_files(FIXTURES)
         self.assertEqual(

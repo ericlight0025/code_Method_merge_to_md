@@ -372,6 +372,12 @@ def _mask_comments_and_strings(source: str) -> str:
             continue
 
         # 其餘 state 都是單引號、雙引號或 JavaScript template literal。
+        # 單/雙引號字串不能跨行；遇到換行就結束，避免 regex literal 內的引號
+        # （例如 /"/g）把後面整段程式碼都遮掉。
+        if current in "\r\n" and state != "`":
+            state = None
+            index += 1
+            continue
         if current == "\\":
             blank(index)
             if index + 1 < length:
